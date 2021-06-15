@@ -205,7 +205,7 @@ app.post("/login",function(req,res){
       req.login(user, function(err){
         if (err) {
           console.log(err);
-        } else {
+        } else {    
           passport.authenticate("local")(req, res, function(){
             res.redirect("/secrets");
           });
@@ -214,6 +214,6 @@ app.post("/login",function(req,res){
 
 })
 
-app.listen(3000, ()=>{
+app.listen(process.env.Port || 3000, ()=>{
     console.log("Server started on port 3000");
 })
