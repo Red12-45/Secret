@@ -30,10 +30,13 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 mongoose.connect('mongodb://localhost:27017/userDB', {useNewUrlParser: true, useUnifiedTopology: true});
+
 mongoose.set("useCreateIndex", true)
 const userSchema = new mongoose.Schema({
     email:String,
-    password:String
+    password:String,
+    googleId:String,
+    secret: String
 })
 userSchema.plugin(passportLocalMongoose);// used to hash and salt password and to 
                                           //save to save our users into our mongo database.
@@ -49,7 +52,7 @@ passport.use(User.createStrategy()); //This part is handled by the passport-loca
 // passport.deserializeUser(User.deserializeUser());
 
 passport.serializeUser(function(user, done) {
-    done(null, user.id);
+    done(null, user.id); 
   });
   
   passport.deserializeUser(function(id, done) {
@@ -69,6 +72,7 @@ passport.use(new GoogleStrategy({
   function(accessToken, refreshToken, profile, cb) { //accessToken:Where google sends data related to the user
     //refreshToken: Which allows us to access the user data for a longer period of time ,
     //profile: Contains emails, google id and anything else that we have access to
+    // console.log(profile)
     User.findOrCreate({ googleId: profile.id }, function (err, user) {
       return cb(err, user);
     });
@@ -99,12 +103,43 @@ app.get('/auth/google/secrets',
   });
 
   app.get("/secrets",function(req,res){
+    User.find({"secret":{$ne:null}}, function(err,foundData){
+        if(err){
+            console.log(err)
+        }else{
+            if(foundData){
+                res.render("secrets",{userWithSecret:foundData})
+            }
+        }
+    })
+      
+})
+
+
+
+app.get("/submit",function(req,res){
     if(req.isAuthenticated()) {
-        res.render("secrets")
+        res.render("submit")
     }else{
         res.redirect("/login")
     }
       
+})
+
+app.post("/submit",function(req,res){
+    const submittedSecret = req.body.secret;
+    User.findById(req.user.id, function(err,foundUser){
+        if(err){
+            console.log(err)
+        }else{
+            if(foundUser){
+                foundUser.secret = submittedSecret
+                foundUser.save(function(){
+                    res.redirect("/secrets")
+                })
+            }
+        }
+    })
 })
 
 app.get("/register", function(req, res){
@@ -163,18 +198,19 @@ app.post("/login",function(req,res){
     //     }
     // })
     const user = new User({
-        username:req.body.username,
-        password:req.body.password
-    })
-    req.login(user, function(err){
-        if(err){
-            res.send("noo")
-        }else{
-            passport.authenticate("local")(req, res, function(){
-                res.redirect("/secrets")
-            })
+        username: req.body.username,
+        password: req.body.password
+      });
+    
+      req.login(user, function(err){
+        if (err) {
+          console.log(err);
+        } else {
+          passport.authenticate("local")(req, res, function(){
+            res.redirect("/secrets");
+          });
         }
-    })
+      });
 
 })
 
